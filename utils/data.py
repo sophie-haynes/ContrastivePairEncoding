@@ -37,7 +37,7 @@ class SideBySideDataset(Dataset):
         return left_image, right_image, label
 
 def get_cxr_train_transforms(crop_size, normalise):
-    return transforms.Compose([
+    return [
         v2.ToImage(),
         v2.RandomRotation(15),
         v2.RandomHorizontalFlip(),
@@ -47,15 +47,15 @@ def get_cxr_train_transforms(crop_size, normalise):
         v2.RandomResizedCrop(size=crop_size, scale=(0.6, 1.), antialias=True),
         v2.ToDtype(torch.float32, scale=False),
         normalise
-    ])
+    ]
 
 def get_cxr_eval_transforms(crop_size, normalise):
-    return transforms.Compose([
+    return [
         v2.ToImage(),
         v2.Resize(size=crop_size, antialias=True),
         v2.ToDtype(torch.float32, scale=False),
         normalise
-    ])
+    ]
 
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
