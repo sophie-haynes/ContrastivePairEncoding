@@ -1,3 +1,8 @@
+import torch
+import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
+
 def train_contrastive(rank, world_size, args, model, loss_fn, train_loader, val_loader, optimizer, num_epochs, log_dir='runs/experiment', model_save_path='contrastive_model.pth'):
     # Initialize the process group for distributed training
     torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=world_size)
