@@ -1,14 +1,15 @@
 import torch
 import argparse
+import torch.multiprocessing as mp
 from models.contrastive import PairDifferenceEncoder
 from models.baseline import BaselineResNet50
 from utils.data import set_loader
 from utils.loss import MultiPosConLoss
 from utils.train import train_contrastive, train_baseline
 
-def main(args):
-    device = torch.device(f"cuda:{args.gpu_id}" if torch.cuda.is_available() else "cpu")
-    
+def main(rank, world_size, args):
+    device = torch.device(f"cuda:{rank}")
+
     if args.model_type == 'contrastive':
         model = PairDifferenceEncoder(fine_tune=args.fine_tune)
         loss_fn = MultiPosConLoss(temperature=args.temperature)
@@ -18,8 +19,9 @@ def main(args):
             {'params': model.fc.parameters(), 'lr': args.fc_lr}
         ])
 
+        # Set up DataLoader with DistributedSampler
         train_loader, val_loader = set_loader(args)
-        train_contrastive(model, loss_fn, train_loader, val_loader, optimizer, num_epochs=args.epochs, device=device, log_dir=args.log_dir, model_save_path=args.model_save_path)
+        train_contrastive(rank, world_size, args, model, loss_fn, train_loader, val_loader, optimizer, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
     elif args.model_type == 'baseline':
         model = BaselineResNet50(fine_tune=args.fine_tune)
@@ -27,8 +29,9 @@ def main(args):
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.fc_lr)
 
+        # Set up DataLoader with DistributedSampler
         train_loader, val_loader = set_loader(args)
-        train_baseline(model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, device=device, log_dir=args.log_dir, model_save_path=args.model_save_path)
+        train_baseline(rank, world_size, args, model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a model")
@@ -50,4 +53,6 @@ if __name__ == "__main__":
     parser.add_argument('--model_save_path', type=str, default='model.pth', help='path to save the trained model')
 
     args = parser.parse_args()
-    main(args)
+
+    world_size = torch.cuda.device_count()  # Number of GPUs available
+    mp.spawn(main, args=(world_size, args), nprocs=world_size, join=True)
