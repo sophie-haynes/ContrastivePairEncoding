@@ -3,9 +3,14 @@ import argparse
 import torch.multiprocessing as mp
 from models.contrastive import PairDifferenceEncoder
 from models.baseline import BaselineResNet50
+import os
 from utils.data import set_loader
 from utils.loss import MultiPosConLoss
 from utils.train import train_contrastive, train_baseline
+
+#set os environment for multiprocessing
+os.environ['MASTER_ADDR'] = '127.0.0.1'
+os.environ['MASTER_PORT'] = '29600'
 
 def main(rank, world_size, args):
     device = torch.device(f"cuda:{rank}")
@@ -20,7 +25,7 @@ def main(rank, world_size, args):
         ])
 
         # Set up DataLoader with DistributedSampler
-        train_loader, val_loader = set_loader(args)
+        train_loader, val_loader = set_loader(args, rank, world_size)
         train_contrastive(rank, world_size, args, model, loss_fn, train_loader, val_loader, optimizer, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
     elif args.model_type == 'baseline':
@@ -30,7 +35,7 @@ def main(rank, world_size, args):
         optimizer = torch.optim.Adam(model.parameters(), lr=args.fc_lr)
 
         # Set up DataLoader with DistributedSampler
-        train_loader, val_loader = set_loader(args)
+        train_loader, val_loader = set_loader(args, rank, world_size)
         train_baseline(rank, world_size, args, model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
 if __name__ == "__main__":
@@ -56,3 +61,4 @@ if __name__ == "__main__":
 
     world_size = torch.cuda.device_count()  # Number of GPUs available
     mp.spawn(main, args=(world_size, args), nprocs=world_size, join=True)
+

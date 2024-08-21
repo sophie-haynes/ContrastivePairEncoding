@@ -57,7 +57,10 @@ def get_cxr_eval_transforms(crop_size, normalise):
         normalise
     ])
 
-def set_loader(opt):
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import DataLoader
+
+def set_loader(opt, rank, world_size):
     if opt.processing == "crop":
         mean, std = crop_dict[opt.dataset]
     elif opt.processing == "lung_seg":
@@ -69,22 +72,25 @@ def set_loader(opt):
 
     v2Normalise = transforms.Normalize(mean=mean, std=std)
 
-    train_transform = get_cxr_train_transforms(opt.size, v2Normalise)
-    val_transform = get_cxr_eval_transforms(opt.size, v2Normalise)
+    cxr_v2_train_transform = transforms.Compose(get_cxr_train_transforms(opt.size, v2Normalise))
+    cxr_v2_val_transform = transforms.Compose(get_cxr_eval_transforms(opt.size, v2Normalise))
 
     train_dataset = SideBySideDataset(
         root_dir=os.path.join(opt.data_folder, opt.processing, 
                               "flat_std_1024" if opt.processing == "arch_seg" else "std_1024", "train"),
-        transform=train_transform
+        transform=cxr_v2_train_transform
     )
     val_dataset = SideBySideDataset(
         root_dir=os.path.join(opt.data_folder, opt.processing, 
                               "flat_std_1024" if opt.processing == "arch_seg" else "std_1024", "test"),
-        transform=val_transform
+        transform=cxr_v2_val_transform
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
-    val_loader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    train_sampler = DistributedSampler(train_dataset, num_replicas=world_size, rank=rank)
+    val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank)
+
+    train_loader = DataLoader(train_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers, pin_memory=True, sampler=train_sampler)
+    val_loader = DataLoader(val_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers, pin_memory=True, sampler=val_sampler)
 
     return train_loader, val_loader
 
