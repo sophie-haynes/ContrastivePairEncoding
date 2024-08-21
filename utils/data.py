@@ -29,6 +29,8 @@ class SideBySideDataset(Dataset):
         width, height = image.size
         left_image = image.crop((0, 0, width // 2, height))
         right_image = image.crop((width // 2, 0, width, height))
+        # flip to match alignment
+        right_image = right_image.transpose(Image.FLIP_LEFT_RIGHT)
         
         if self.transform:
             left_image = self.transform(left_image)
