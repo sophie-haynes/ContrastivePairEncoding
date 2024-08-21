@@ -12,6 +12,25 @@ from utils.train import train_contrastive, train_baseline
 os.environ['MASTER_ADDR'] = '127.0.0.1'
 os.environ['MASTER_PORT'] = '29600'
 
+# add experiment hyperparameter logging to tensorboard
+def log_experiment_details(writer, args):
+    hparams = {
+        "epochs": args.epochs,
+        "backbone_lr": args.backbone_lr,
+        "fc_lr": args.fc_lr,
+        "temperature": args.temperature,
+        "fine_tune": args.fine_tune,
+        "batch_size": args.batch_size,
+        "num_workers": args.num_workers,
+        "size": args.size,
+        "processing": args.processing,
+        "dataset": args.dataset,
+        "model_type": args.model_type,
+        "model_save_path": args.model_save_path,
+        "log_dir": args.log_dir
+    }
+    writer.add_hparams(hparams, {})
+
 def main(rank, world_size, args):
     if world_size > 1:
         # Multi-GPU setup
@@ -21,6 +40,12 @@ def main(rank, world_size, args):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         rank = 0  # Set rank to 0 for non-distributed single-GPU
 
+    # Initialize SummaryWriter for TensorBoard logging
+    if rank == 0:  # Only the main process should log experiment details
+        writer = SummaryWriter(log_dir=args.log_dir)
+        log_experiment_details(writer, args)
+    else:
+        writer = None
 
     if args.model_type == 'contrastive':
         model = PairDifferenceEncoder(fine_tune=args.fine_tune)
@@ -42,6 +67,8 @@ def main(rank, world_size, args):
 
         train_loader, val_loader = set_loader(args, rank, world_size)
         train_baseline(rank, world_size, args, model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
+    if writer:
+        writer.close()  # Close the writer after the experiment
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a model")
