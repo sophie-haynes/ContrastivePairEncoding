@@ -13,7 +13,14 @@ os.environ['MASTER_ADDR'] = '127.0.0.1'
 os.environ['MASTER_PORT'] = '29600'
 
 def main(rank, world_size, args):
-    device = torch.device(f"cuda:{rank}")
+    if world_size > 1:
+        # Multi-GPU setup
+        device = torch.device(f"cuda:{rank}")
+    else:
+        # Single-GPU setup
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        rank = 0  # Set rank to 0 for non-distributed single-GPU
+
 
     if args.model_type == 'contrastive':
         model = PairDifferenceEncoder(fine_tune=args.fine_tune)
@@ -24,7 +31,6 @@ def main(rank, world_size, args):
             {'params': model.fc.parameters(), 'lr': args.fc_lr}
         ])
 
-        # Set up DataLoader with DistributedSampler
         train_loader, val_loader = set_loader(args, rank, world_size)
         train_contrastive(rank, world_size, args, model, loss_fn, train_loader, val_loader, optimizer, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
@@ -34,7 +40,6 @@ def main(rank, world_size, args):
 
         optimizer = torch.optim.Adam(model.parameters(), lr=args.fc_lr)
 
-        # Set up DataLoader with DistributedSampler
         train_loader, val_loader = set_loader(args, rank, world_size)
         train_baseline(rank, world_size, args, model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
@@ -60,5 +65,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     world_size = torch.cuda.device_count()  # Number of GPUs available
-    mp.spawn(main, args=(world_size, args), nprocs=world_size, join=True)
+    if world_size > 1:
+        mp.spawn(main, args=(world_size, args), nprocs=world_size, join=True)
+    else:
+        main(rank=0, world_size=1, args=args)
 
