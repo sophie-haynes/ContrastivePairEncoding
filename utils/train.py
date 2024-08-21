@@ -13,7 +13,7 @@ def calculate_accuracy(outputs, labels):
     correct = (preds == labels.float()).sum().item()
     return correct / labels.size(0)
 
-def train_contrastive(model, loss_fn, train_loader, val_loader, optimizer, num_epochs, device, log_dir='runs/experiment'):
+def train_contrastive(model, loss_fn, train_loader, val_loader, optimizer, num_epochs, device, log_dir='runs/experiment',model_save_path='contrastive_model.pth'):
     model = model.to(device)
     
     if torch.cuda.device_count() > 1:
@@ -84,7 +84,11 @@ def train_contrastive(model, loss_fn, train_loader, val_loader, optimizer, num_e
 
     writer.close()
 
-def train_baseline(model, train_loader, val_loader, optimizer, criterion, num_epochs, device, log_dir='runs/baseline'):
+    # Save the model after the last epoch
+    torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved to {model_save_path}")
+
+def train_baseline(model, train_loader, val_loader, optimizer, criterion, num_epochs, device, log_dir='runs/baseline', model_save_path='baseline_model.pth'):
     model = model.to(device)
     
     if torch.cuda.device_count() > 1:
@@ -154,4 +158,8 @@ def train_baseline(model, train_loader, val_loader, optimizer, criterion, num_ep
         print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {epoch_val_acc:.4f}")
 
     writer.close()
+
+    # Save the model after the last epoch
+    torch.save(model.state_dict(), model_save_path)
+    print(f"Model saved to {model_save_path}")
 

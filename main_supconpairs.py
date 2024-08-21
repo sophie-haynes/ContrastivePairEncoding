@@ -19,7 +19,7 @@ def main(args):
         ])
 
         train_loader, val_loader = set_loader(args)
-        train_contrastive(model, loss_fn, train_loader, val_loader, optimizer, num_epochs=args.epochs, device=device, log_dir=args.log_dir)
+        train_contrastive(model, loss_fn, train_loader, val_loader, optimizer, num_epochs=args.epochs, device=device, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
     elif args.model_type == 'baseline':
         model = BaselineResNet50(fine_tune=args.fine_tune)
@@ -28,7 +28,7 @@ def main(args):
         optimizer = torch.optim.Adam(model.parameters(), lr=args.fc_lr)
 
         train_loader, val_loader = set_loader(args)
-        train_baseline(model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, device=device, log_dir=args.log_dir)
+        train_baseline(model, train_loader, val_loader, optimizer, criterion, num_epochs=args.epochs, device=device, log_dir=args.log_dir, model_save_path=args.model_save_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a model")
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_folder', type=str, required=True, help='path to the dataset root folder')
     parser.add_argument('--gpu_id', type=int, default=0, help='ID of the GPU to use')
     parser.add_argument('--model_type', type=str, choices=['contrastive', 'baseline'], required=True, help='which model type to train')
+    parser.add_argument('--model_save_path', type=str, default='model.pth', help='path to save the trained model')
 
     args = parser.parse_args()
     main(args)
