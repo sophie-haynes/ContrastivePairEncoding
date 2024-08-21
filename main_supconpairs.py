@@ -7,6 +7,8 @@ import os
 from utils.data import set_loader
 from utils.loss import MultiPosConLoss
 from utils.train import train_contrastive, train_baseline
+from datetime import datetime
+from torch.utils.tensorboard import SummaryWriter
 
 #set os environment for multiprocessing
 os.environ['MASTER_ADDR'] = '127.0.0.1'
